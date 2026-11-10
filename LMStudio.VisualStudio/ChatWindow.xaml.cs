@@ -5,6 +5,8 @@
 // ---------------------------------------------------------------------------
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -16,8 +18,12 @@ namespace LMStudio.VisualStudio
     public partial class ChatWindow : UserControl
     {
         private readonly List<ChatMessage> _history = new List<ChatMessage>();
+        private readonly List<string> _toolTranscript = new List<string>(); // lightweight record of tool use (kept out of the model context on purpose)
         private AssistantSettings _settings;
         private bool _busy;
+
+        /// <summary>Max number of additional model calls per user message while executing requested file tools.</summary>
+        private const int MaxToolRounds = 5;
 
         private static readonly Brush UserBrush = Brushes.DarkBlue;
         private static readonly Brush AssistantBrush = Brushes.Black;
@@ -46,14 +52,11 @@ namespace LMStudio.VisualStudio
             SetBusy(true);
             try
             {
-                var reply = await LmStudioClient.SendChatAsync(_settings, _history, System.Threading.CancellationToken.None);
-                if (string.IsNullOrWhiteSpace(reply))
+                var finalReply = await SendWithToolsAsync(System.Threading.CancellationToken.None);
+                if (string.IsNullOrWhiteSpace(finalReply))
                     AppendMessage("(empty response)", "The model didn't produce an answer — context might be too long or temperature setting should be checked.", ErrorBrush);
                 else
-                {
-                    AppendMessage("Assistant: ", reply, AssistantBrush);
-                    _history.Add(new ChatMessage("assistant", reply));
-                }
+                    _history.Add(new ChatMessage("assistant", finalReply));
             }
             catch (LmStudioServerException ex)
             {
@@ -71,6 +74,73 @@ namespace LMStudio.VisualStudio
                 SetBusy(false);
                 PromptInput.Focus();
             }
+        }
+
+        // ------------------------------ Agent loop (file tools) ------------------------------
+
+        /// <summary>
+        /// Sends one request to the local server and, whenever the model embeds file-tool calls
+        /// in its reply, executes them against the workspace root and feeds the machine-readable
+        /// results back as a user message — repeated for up to MaxToolRounds rounds.
+        /// Returns the FINAL assistant text; appending it to _history is done by the caller (exactly once).
+        /// </summary>
+        private async Task<string> SendWithToolsAsync(System.Threading.CancellationToken ct)
+        {
+            string reply = await LmStudioClient.SendChatAsync(_settings, BuildApiMessages(), ct);
+            AppendMessage("Assistant: ", string.IsNullOrWhiteSpace(reply) ? "(empty response)" : reply, AssistantBrush);
+
+            for (int round = 1; round <= MaxToolRounds; round++)
+            {
+                var calls = WorkspaceTools.ExtractToolCalls(reply);
+                if (calls.Count == 0) return reply ?? ""; // plain text answer — done.
+
+                string workspaceRoot;
+                try
+                {
+                    workspaceRoot = await Task.Run(WorkspaceTools.ResolveWorkspaceRoot); // off-UI-thread: no blocking during the DTE service lookup
+                }
+                catch (Exception ex)
+                {
+                    AppendMessage("System: ", "File tools disabled for this message: " + ex.Message, ErrorBrush);
+                    return reply ?? ""; // keep the model's text answer; do not loop without a root.
+                }
+
+                string toolLog = "";
+                foreach (var call in calls)
+                {
+                    var tRes = await WorkspaceTools.RunAsync(call, workspaceRoot, ct); // file IO runs OFF the UI thread
+                    AppendMessage(tRes.Success ? "  Tool OK:   " : "  Tool FAILED:",
+                        (call.HasParseError ? "?invalid-json? " : call.ToString() + " — ") + tRes.Summary,
+                        tRes.Success ? SystemBrushColor : ErrorBrush);
+                    toolLog += (tRes.Output ?? "") + "\n";
+                }
+
+                // Feed the results back and let the model continue from there.
+                _history.Add(new ChatMessage("assistant", reply));
+                _toolTranscript.Add("[" + round + "] " + string.Join(", ", calls.Select(c => c.ToString())));
+                _history.Add(new ChatMessage("user",
+                    "TOOL_RESULTS:\n" + toolLog.TrimEnd() +
+                    "\n\n(These are the machine-readable results of your file-tool calls. Continue: answer the user's question, or emit another ```tool``` block if more files are needed.)"));
+
+                reply = await LmStudioClient.SendChatAsync(_settings, BuildApiMessages(), ct);
+                AppendMessage("Assistant: ", string.IsNullOrWhiteSpace(reply) ? "(empty response)" : reply, AssistantBrush);
+            }
+
+            // Round cap reached while tool calls were still pending.
+            if (reply != null && WorkspaceTools.ExtractToolCalls(reply).Count > 0)
+                AppendMessage("System: ", "Tool loop stopped after " + MaxToolRounds + " rounds — remaining tool calls were not executed.", ErrorBrush);
+
+            return reply ?? "";
+        }
+
+        /// <summary>Builds the API message list: system prompt (static) + conversation history.
+        /// The lightweight _toolTranscript is intentionally NOT part of the model context.</summary>
+        private List<ChatMessage> BuildApiMessages()
+        {
+            var messages = new List<ChatMessage>();
+            messages.Add(new ChatMessage("system", WorkspaceTools.SystemPrompt));
+            foreach (var m in _history) messages.Add(m);
+            return messages;
         }
 
         private void OnPromptKeyDown(object sender, KeyEventArgs e)
