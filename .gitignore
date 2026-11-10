@@ -1,0 +1,19 @@
+# AI-Toolbox / Session-State (kein Code, nicht committen)
+.session_context/
+.ai_toolbox_memory.msgpack
+**/.ai_toolbox_plans.json
+
+# .NET / VSIX-Build-Artefakte
+.vs/
+bin/
+obj/
+*.user
+*.suo
+packages/
+[Ll]MStudio.VisualStudio/[Bb]in/
+[Ll]MStudio.VisualStudio/[O]bj/
+*.vsix
+publish/
+
+# Backups der Edit-Tools
+*.bak
