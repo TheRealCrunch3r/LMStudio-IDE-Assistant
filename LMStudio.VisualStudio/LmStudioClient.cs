@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
-// LmStudioClient.cs – schlanker HTTP-Client für den lokalen LM Studio Server.
-// Nutzt ausschließlich den OpenAI-kompatiblen Endpunkt:  {Base}/v1/chat/completions
-// (Dokumentation: https://lmstudio.ai/docs/api — lokale, keylose Anbindung.)
+// LmStudioClient.cs – lightweight HTTP client for the local LM Studio server.
+// Uses exclusively the OpenAI-compatible endpoint:  {Base}/v1/chat/completions
+// (documentation: https://lmstudio.ai/docs/api — local, API-keyless connection).
 // ---------------------------------------------------------------------------
 using System;
 using System.Collections.Generic;
@@ -13,16 +13,16 @@ using System.Threading.Tasks;
 
 namespace LMStudio.VisualStudio
 {
-    /// <summary>Konfiguration der lokalen Server-Anbindung (persistiert via SettingsStore).</summary>
+    /// <summary>Local server connection configuration (persisted via SettingsStore).</summary>
     public sealed class AssistantSettings
     {
-        /// <summary>Base-URL des LM Studio Servers, z. B. "http://localhost:1234".</summary>
+        /// <summary>Base URL of the LM Studio server, e.g. "http://localhost:1234".</summary>
         public string BaseUrl { get; set; } = "http://localhost:1234";
 
-        /// <summary>Lediertes Modell-ID. Leer lassen = Server nutzt sein Default-Modell.</summary>
+        /// <summary>Desired model ID. Leave empty = server uses its default model.</summary>
         public string ModelId { get; set; } = "";
 
-        /// <summary>HTTP-Timeout in Sekunden (lokale LLM-Antworten können lang dauern).</summary>
+        /// <summary>HTTP timeout in seconds (local LLM answers may take a while).</summary>
         public int TimeoutSeconds { get; set; } = 600;
 
         private string NormalizeBase()
@@ -34,7 +34,7 @@ namespace LMStudio.VisualStudio
         public Uri BaseUri => new Uri(NormalizeBase());
     }
 
-    /// <summary>Eine Chat-Nachricht im OpenAI-kompatiblen Format.</summary>
+    /// <summary>A chat message in OpenAI-compatible format.</summary>
     public sealed class ChatMessage
     {
         public string Role { get; set; } = "user";   // "system" | "user" | "assistant"
@@ -44,21 +44,21 @@ namespace LMStudio.VisualStudio
         public ChatMessage(string role, string content) { Role = role; Content = content; }
     }
 
-    /// <summary>Fehler aus dem LM Studio Server (HTTP- oder Parsing-Fehler) mit menschenlesbarer Meldung.</summary>
+    /// <summary>Error from the LM Studio server (HTTP or parsing error) with a human-readable message.</summary>
     public class LmStudioServerException : Exception
     {
         public LmStudioServerException(string message) : base(message) { }
     }
 
     /// <summary>
-    /// Statische, thread-sichere Client-Klasse. HttpClient ist ein Singleton (bekannte .NET-Bestpraxis:
-    /// nie pro Request neu anlegen – sonst Socket-Port-Erschöpfung).
+    /// Static, thread-safe client class. HttpClient is a singleton (well-known .NET best practice:
+    /// never create new per request — otherwise socket port exhaustion).
     /// </summary>
     public static class LmStudioClient
     {
         private static readonly HttpClient Http = new HttpClient();
 
-        /// <summary>Sendet den Gesprächsverlauf und gibt die Antwort des Modells zurück.</summary>
+        /// <summary>Sends the conversation history and returns the model's response.</summary>
         public static async Task<string> SendChatAsync(AssistantSettings settings, IReadOnlyList<ChatMessage> messages, CancellationToken ct)
         {
             var payload = new
@@ -79,11 +79,11 @@ namespace LMStudio.VisualStudio
             }
             catch (HttpRequestException ex)
             {
-                throw new LmStudioServerException($"LM Studio Server unter '{settings.BaseUrl}' nicht erreichbar. Läuft der Server? ({ShortReason(ex)})");
+                throw new LmStudioServerException($"LM Studio server at '{settings.BaseUrl}' not reachable. Is the server running? ({ShortReason(ex)})");
             }
             catch (TaskCanceledException) when (!ct.IsCancellationRequested)
             {
-                throw new LmStudioServerException($"Zeitüberschreitung nach {settings.TimeoutSeconds}s – Antwort ausstehend oder Server hängt.");
+                throw new LmStudioServerException($"Timed out after {settings.TimeoutSeconds}s — response pending or server hung up.");
             }
 
             var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -92,12 +92,12 @@ namespace LMStudio.VisualStudio
             response.Dispose();
 
             if (!success)
-                throw new LmStudioServerException($"LM Studio Server antwortete mit HTTP {statusCode}: {Truncate(body, 300)}");
+                throw new LmStudioServerException($"LM Studio server responded with HTTP {statusCode}: {Truncate(body, 300)}");
 
             return ExtractAssistantText(body);
         }
 
-        /// <summary>Connection-Test: ruft {Base}/v1/models ab und liefert die geladenen Modell-IDs.</summary>
+        /// <summary>Connection test: fetches {Base}/v1/models and returns loaded model IDs.</summary>
         public static async Task<List<string>> GetModelsAsync(AssistantSettings settings, CancellationToken ct)
         {
             var requestUri = new Uri(settings.BaseUri, "v1/models");
@@ -106,16 +106,16 @@ namespace LMStudio.VisualStudio
             try
             {
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                cts.CancelAfter(TimeSpan.FromSeconds(10)); // Verbindungstest muss schnell sein
+                cts.CancelAfter(TimeSpan.FromSeconds(10)); // connection test must be fast
                 response = await Http.GetAsync(requestUri, cts.Token).ConfigureAwait(false);
             }
             catch (HttpRequestException ex)
             {
-                throw new LmStudioServerException($"LM Studio Server unter '{settings.BaseUrl}' nicht erreichbar. Läuft der Server? ({ShortReason(ex)})");
+                throw new LmStudioServerException($"LM Studio server at '{settings.BaseUrl}' not reachable. Is the server running? ({ShortReason(ex)})");
             }
             catch (TaskCanceledException) when (!ct.IsCancellationRequested)
             {
-                throw new LmStudioServerException("Verbindungstest: Zeitüberschreitung (10 s).");
+                throw new LmStudioServerException("Connection test: timed out (10 s).");
             }
 
             var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -138,46 +138,46 @@ namespace LMStudio.VisualStudio
             }
             catch (JsonException)
             {
-                throw new LmStudioServerException("Antwort des Servers ist kein erwartetes JSON-Format.");
+                throw new LmStudioServerException("Server response is not in the expected JSON format.");
             }
         }
 
-        // ----------------------------- interne Helfer -----------------------------
+        // ----------------------------- internal helpers -----------------------------
 
-        /// <summary>Parsed choices[0].message.content aus einer Chat-Completion-Antwort.</summary>
+        /// <summary>Parses choices[0].message.content from a chat completion response.</summary>
         private static string ExtractAssistantText(string body)
         {
             if (string.IsNullOrWhiteSpace(body))
-                throw new LmStudioServerException("Leere Antwort vom Server.");
+                throw new LmStudioServerException("Empty server response.");
 
             JsonElement root;
             try
             {
                 using var doc = JsonDocument.Parse(body);
-                root = doc.RootElement.Clone(); // Clone: Doc wird nach dem using verworfen
+                root = doc.RootElement.Clone(); // Clone: the doc is disposed after this block
             }
             catch (JsonException)
             {
-                throw new LmStudioServerException("Antwort des Servers ist kein JSON. (Falscher Endpoint oder Proxy-Antwort?)");
+                throw new LmStudioServerException("Server response is not JSON. (Wrong endpoint or proxy reply?)");
             }
 
             try
             {
                 var choices = root.GetProperty("choices");
                 if (choices.ValueKind != JsonValueKind.Array || choices.GetArrayLength() == 0)
-                    throw new LmStudioServerException("Antwort enthält keine 'choices'.");
+                    throw new LmStudioServerException("Response contains no 'choices'.");
                 return choices[0].GetProperty("message").GetProperty("content").GetString() ?? "";
             }
             catch (LmStudioServerException) { throw; }
             catch (KeyNotFoundException)
             {
-                // z. B. "error"-Objekt statt "choices" (API-Fehler des Servers)
+                // e.g. "error" object instead of "choices" (server's API error)
                 if (root.TryGetProperty("error", out var err))
                 {
                     var msg = err.ValueKind == JsonValueKind.Object && err.TryGetProperty("message", out var em) ? em.GetString() : err.ToString();
-                    throw new LmStudioServerException("LM Studio meldete einen Fehler: " + Truncate(msg ?? "?", 300));
+                    throw new LmStudioServerException("LM Studio reported an error: " + Truncate(msg ?? "?", 300));
                 }
-                throw new LmStudioServerException("Unerwartetes Antwortformat (Feld 'choices[0].message.content' fehlt).");
+                throw new LmStudioServerException("Unexpected response format (field 'choices[0].message.content' missing).");
             }
         }
 

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
-// SettingsPage.xaml.cs – modales Einstellungs-Fenster (Base URL + Modell-ID).
-// Ergebnis wird über ResultSettings an die ChatView zurückgereicht.
+// SettingsPage.xaml.cs – modal settings window (base URL + model ID).
+// The result is passed back to the chat view via ResultSettings.
 // ---------------------------------------------------------------------------
 using System;
 using System.Windows;
@@ -11,7 +11,7 @@ namespace LMStudio.VisualStudio
     {
         private readonly AssistantSettings _current;
 
-        /// <summary>Gültiges Ergebnis, wenn DialogResult == true.</summary>
+        /// <summary>Valid result when DialogResult == true.</summary>
         public AssistantSettings ResultSettings { get; private set; }
 
         public SettingsPage(AssistantSettings current)
@@ -27,20 +27,20 @@ namespace LMStudio.VisualStudio
             var baseUrl = (BaseUrlBox.Text ?? "").Trim().TrimEnd('/');
             if (baseUrl.Length == 0)
             {
-                MessageBox.Show(this, "Bitte eine Server-URL eingeben (z. B. http://localhost:1234).", "Eingabe prüfen", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(this, "Please enter a server URL (e.g. http://localhost:1234).", "Check input", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            // Uri-Gültigkeit früh prüfen (AssistantSettings.BaseUri würde sonst beim ersten Request werfen).
+            // Check URI validity early (AssistantSettings.BaseUri would throw on first request otherwise).
             try
             {
                 var probe = new Uri(baseUrl, UriKind.Absolute);
                 if (probe.Scheme != Uri.UriSchemeHttp && probe.Scheme != Uri.UriSchemeHttps)
-                    throw new FormatException("nur http:// oder https:// erlaubt");
+                    throw new FormatException("only http:// or https:// allowed");
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "Ungültige Server-URL: " + ex.Message, "Eingabe prüfen", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(this, "Invalid server URL: " + ex.Message, "Check input", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -48,7 +48,7 @@ namespace LMStudio.VisualStudio
             {
                 BaseUrl = baseUrl,
                 ModelId = (ModelBox.Text ?? "").Trim(),
-                TimeoutSeconds = _current.TimeoutSeconds // v0.1: nicht editierbar, bleibt beim Default
+                TimeoutSeconds = _current.TimeoutSeconds // v0.1: not editable, stays at default
             };
             DialogResult = true;
         }
@@ -58,27 +58,27 @@ namespace LMStudio.VisualStudio
             var baseUrl = (BaseUrlBox.Text ?? "http://localhost:1234").Trim().TrimEnd('/');
 
             TestButton.IsEnabled = false;
-            TestResultText.Text = "Verbinde mit " + baseUrl + " …";
+            TestResultText.Text = "Connecting to " + baseUrl + " …";
             try
             {
                 var probeSettings = new AssistantSettings
                 {
                     BaseUrl = baseUrl,
                     ModelId = (ModelBox.Text ?? "").Trim(),
-                    TimeoutSeconds = 10 // Test muss schnell sein
+                    TimeoutSeconds = 10 // test must be fast
                 };
 
                 var models = await LmStudioClient.GetModelsAsync(probeSettings, System.Threading.CancellationToken.None);
                 if (models.Count == 0)
                 {
-                    SetTestResult("⚠️ Server erreichbar, aber es sind keine Modelle geladen.", false);
+                    SetTestResult("⚠️ Server reachable, but no models loaded.", false);
                 }
                 else
                 {
                     var list = string.Join(", ", models.ToArray());
-                    // Bei sehr langen Listen kürzen:
+                    // Truncate very long lists:
                     if (list.Length > 200) list = list.Substring(0, 200) + " …";
-                    SetTestResult("✅ Verbunden. Geladene Modelle (" + models.Count + "): " + list, true);
+                    SetTestResult("✅ Connected. Loaded models (" + models.Count + "): " + list, true);
                 }
             }
             catch (LmStudioServerException ex)
@@ -87,7 +87,7 @@ namespace LMStudio.VisualStudio
             }
             catch (Exception ex)
             {
-                SetTestResult("❌ Unerwarteter Fehler: " + ex.Message, false);
+                SetTestResult("❌ Unexpected error: " + ex.Message, false);
             }
             finally
             {

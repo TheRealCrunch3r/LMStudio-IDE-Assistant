@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
-// SettingsStore.cs – Persistenz der Einstellungen unter %APPDATA%\LMStudioAssistant\config.json
-// (bewusst schlicht: JSON-Datei, kein MemoryCache/Framework-Dependency).
+// SettingsStore.cs – Persist settings under %APPDATA%\LMStudioAssistant\config.json
+// (intentionally simple: JSON file, no MemoryCache / framework dependency).
 // ---------------------------------------------------------------------------
 using System;
 using System.IO;
@@ -16,7 +16,7 @@ namespace LMStudio.VisualStudio
         private static string SettingsPath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), FolderName, FileName);
 
-        /// <summary>Lädt die Einstellungen; bei fehlender/defekter Datei -> Defaults.</summary>
+        /// <summary>Loads settings; defaults on missing/corrupt file.</summary>
         public static AssistantSettings Load()
         {
             try
@@ -30,12 +30,12 @@ namespace LMStudio.VisualStudio
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine("[LMStudioAssistant] Settings-Load fehlgeschlagen, Defaults: " + ex.Message);
+                System.Diagnostics.Debug.WriteLine("[LMStudioAssistant] Settings load failed, defaults: " + ex.Message);
             }
             return new AssistantSettings();
         }
 
-        /// <summary>Speichert die Einstellungen atomar genug für einen lokalen Client (schreiben in Datei).</summary>
+        /// <summary>Saves settings atomically enough for a local client (writes to file).</summary>
         public static void Save(AssistantSettings settings)
         {
             try
@@ -46,8 +46,8 @@ namespace LMStudio.VisualStudio
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine("[LMStudioAssistant] Settings-Save fehlgeschlagen: " + ex.Message);
-                throw; // UI zeigt den Fehler an (MessageBox), damit der User es merkt.
+                System.Diagnostics.Debug.WriteLine("[LMStudioAssistant] Settings save failed: " + ex.Message);
+                throw; // UI shows the error via MessageBox so the user notices.
             }
         }
     }

@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
-// ChatWindow.xaml.cs – Code-Behind der ChatView.
-// Thread-Regel: WPF-SynchronizationContext übernimmt die Marshaling-Rückkehr nach await;
-// keine manuellen Dispatcher-Calls nötig, solange wir nie auf einem anderen Thread UI anfassen.
+// ChatWindow.xaml.cs – Code-behind for the chat view.
+// Threading rule: WPF SynchronizationContext handles marshaling back after await;
+// no manual Dispatcher calls needed as long as we never touch UI from another thread.
 // ---------------------------------------------------------------------------
 using System;
 using System.Collections.Generic;
@@ -29,10 +29,10 @@ namespace LMStudio.VisualStudio
             InitializeComponent();
             _settings = SettingsStore.Load();
             UpdateStatus($"LM Studio: {(_settings.BaseUri == null ? "?" : _settings.BaseUrl)}" +
-                         (string.IsNullOrWhiteSpace(_settings.ModelId) ? " · Default-Modell" : " · Modell: " + _settings.ModelId));
+                         (string.IsNullOrWhiteSpace(_settings.ModelId) ? " · Default model" : " · Model: " + _settings.ModelId));
         }
 
-        // ------------------------------ Chat-Logik ------------------------------
+        // ------------------------------ Chat logic ------------------------------
 
         private async void OnSendClick(object sender, RoutedEventArgs e)
         {
@@ -40,7 +40,7 @@ namespace LMStudio.VisualStudio
             if (prompt.Length == 0 || _busy) return;
 
             PromptInput.Clear();
-            AppendMessage("Du: ", prompt, UserBrush);
+            AppendMessage("You: ", prompt, UserBrush);
             _history.Add(new ChatMessage("user", prompt));
 
             SetBusy(true);
@@ -48,7 +48,7 @@ namespace LMStudio.VisualStudio
             {
                 var reply = await LmStudioClient.SendChatAsync(_settings, _history, System.Threading.CancellationToken.None);
                 if (string.IsNullOrWhiteSpace(reply))
-                    AppendMessage("(leere Antwort)", "Das Modell hat keine Antwort geliefert – ggf. Kontext zu lang oder Temperatur-Einstellung prüfen.", ErrorBrush);
+                    AppendMessage("(empty response)", "The model didn't produce an answer — context might be too long or temperature setting should be checked.", ErrorBrush);
                 else
                 {
                     AppendMessage("Assistant: ", reply, AssistantBrush);
@@ -57,13 +57,13 @@ namespace LMStudio.VisualStudio
             }
             catch (LmStudioServerException ex)
             {
-                // Fehlerbehandlung gemäß Spezifikation: MessageBox + Prompt bleibt wieder editierbar.
-                AppendMessage("Fehler: ", ex.Message, ErrorBrush);
-                MessageBox.Show(ex.Message, "LM Studio AI Assistant – Serverfehler", MessageBoxButton.OK, MessageBoxImage.Warning);
+                // Error handling per spec: MessageBox + prompt becomes editable again.
+                AppendMessage("Error: ", ex.Message, ErrorBrush);
+                MessageBox.Show(ex.Message, "LM Studio AI Assistant – Server Error", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             catch (Exception ex)
             {
-                AppendMessage("Unerwarteter Fehler: ", ex.Message, ErrorBrush);
+                AppendMessage("Unexpected error: ", ex.Message, ErrorBrush);
                 MessageBox.Show(ex.ToString(), "LM Studio AI Assistant", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
@@ -75,7 +75,7 @@ namespace LMStudio.VisualStudio
 
         private void OnPromptKeyDown(object sender, KeyEventArgs e)
         {
-            // Single-Line-Eingabe: Enter sendet (Shift+Enter = kein Zeilenumbruch nötig).
+            // Single-line input: Enter sends (Shift+Enter = no line break needed).
             if (e.Key == Key.Enter && _busy == false)
             {
                 e.Handled = true;
@@ -88,10 +88,10 @@ namespace LMStudio.VisualStudio
             _busy = busy;
             SendButton.IsEnabled = !busy;
             SettingsButton.IsEnabled = !busy;
-            StatusText.Text = busy ? "LM Studio denkt nach … (lokale Inferenz kann dauern)" : StatusText.Text;
+            StatusText.Text = busy ? "LM Studio is thinking… (local inference may take a while)" : StatusText.Text;
         }
 
-        // ------------------------------ UI-Helfer ------------------------------
+        // ------------------------------ UI helpers ------------------------------
 
         private void AppendMessage(string prefix, string text, Brush brush)
         {
@@ -106,25 +106,25 @@ namespace LMStudio.VisualStudio
             paragraph.Inlines.Add(prefixRun);
             paragraph.Inlines.Add(textRun);
 
-            ChatOutput.Document.Blocks.Add(paragraph); // Historie wird NICHT geleert – das ist der Chatverlauf.
+            ChatOutput.Document.Blocks.Add(paragraph); // History is NOT cleared — it's the chat log.
             ScrollToBottom();
         }
 
         private void ScrollToBottom()
         {
-            try { ChatOutput.ScrollToEnd(); } catch { /* RichTextBox-Scrolleinheiten können bei leerem Doc fehlschlagen – harmlos. */ }
+            try { ChatOutput.ScrollToEnd(); } catch { /* RichTextBox scroll units may fail on empty doc — harmless. */ }
         }
 
         private void UpdateStatus(string text) => StatusText.Text = text;
 
-        // ------------------------------ Einstellungen ------------------------------
+        // ------------------------------ Settings ------------------------------
 
         private void OnOpenSettings(object sender, RoutedEventArgs e)
         {
             if (_busy) return;
 
             var page = new SettingsPage(_settings);
-            bool? result = page.ShowDialog();   // modal im Extension-Host
+            bool? result = page.ShowDialog();   // modal in the Extension Host
             if (result == true)
             {
                 _settings = page.ResultSettings ?? _settings;
@@ -132,12 +132,12 @@ namespace LMStudio.VisualStudio
                 {
                     SettingsStore.Save(_settings);
                     UpdateStatus($"LM Studio: {_settings.BaseUrl} · " +
-                                 (string.IsNullOrWhiteSpace(_settings.ModelId) ? "Default-Modell" : "Modell: " + _settings.ModelId));
-                    AppendMessage("System: ", "Einstellungen gespeichert.", SystemBrushColor);
+                                 (string.IsNullOrWhiteSpace(_settings.ModelId) ? "Default model" : "Model: " + _settings.ModelId));
+                    AppendMessage("System: ", "Settings saved.", SystemBrushColor);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(ex.Message, "LM Studio AI Assistant – Einstellungen", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(ex.Message, "LM Studio AI Assistant – Settings", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
         }
