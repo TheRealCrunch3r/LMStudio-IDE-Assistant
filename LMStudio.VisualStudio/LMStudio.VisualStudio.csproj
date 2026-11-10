@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- net10.0-windows: .NET Desktop Runtime 10.0.10 ist auf dieser Maschine installiert (verifiziert per "dotnet" CLI, Befehl list runtimes). -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>LMStudio.VisualStudio</RootNamespace>
+    <AssemblyName>LMStudio.VisualStudio</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <Company>TheRealCrunch3r</Company>
+    <Product>LM Studio AI Assistant</Product>
+    <Description>Local-first KI-Chat-Assistent für Visual Studio, angebunden an den lokalen LM Studio Server.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Metapaket mit allen VS-Shell-/Interop-Referenzen (neueste verfügbare Version laut nuget.org: 17.14.x). -->
+    <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.14.40265" />
+    <!-- Build-Tooling, Versionszeile des VS-Hosts (Professional 2026 = v18) -> 18.x; neueste stabile laut nuget.org: 18.9.820. -->
+    <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="18.9.820" />
+  </ItemGroup>
+
+</Project>

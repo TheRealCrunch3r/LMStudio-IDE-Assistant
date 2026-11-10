@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  InstallationTarget [18.0 -]: Visual Studio 2025/2026 (v18.x).
+  Lokal verifiziert: VS Professional 2026 = v18.8 ist auf dieser Maschine installiert (vswhere).
+  Die Ident-GUID {4C7A9B3E-...} muss mit der GUID in Source.ExtensionPackage.cs identisch sein!
+-->
+<Installation xmlns:d="http://schemas.microsoft.com/VisualStudio/doc/2014/VSIXInstallPropertiesDataContract" ManifestVersion="2.0.10243" Id="{4C7A9B3E-8D2F-4E61-B5A2-7D9C1E0F3A64}" Version="1.0.0.0">
+  <Dependencies>
+    <Dependency Id="Microsoft.Framework.NDP" DisplayName=".NET Framework" />
+    <Dependency Id="Microsoft.VisualStudio.Community [18.0 -]" DisplayName="Visual Studio Community, Professional, Enterprise" />
+  </Dependencies>
+  <InstallationIdentity Id="{4C7A9B3E-8D2F-4E61-B5A2-7D9C1E0F3A64}" Version="1.0.0.0" Language="en-US" />
+  <LocalizableData>
+    <Name>LM Studio AI Assistant</Name>
+    <LicensingUrl>https://github.com/TheRealCrunch3r/LMStudio-IDE-Assistant/blob/main/LICENSE</LicensingUrl>
+    <MoreInfoUrl>https://github.com/TheRealCrunch3r/LMStudio-IDE-Assistant</MoreInfoUrl>
+    <Keywords>LM Studio, AI Assistant, Local LLM, Chat, Copilot-Alternative</Keywords>
+  </LocalizableData>
+  <Description xml:space="preserve">Local-first KI-Chat-Assistent für Visual Studio. Kommuniziert ausschließlich mit dem lokalen LM Studio Server (http://localhost:1234) – ohne externe API-Key, ohne Cloud.</Description>
+  <Publisher>TheRealCrunch3r</Publisher>
+  <PublisherUrl>https://github.com/TheRealCrunch3r</PublisherUrl>
+  <ReleaseNotes>Initial-Release v0.1.0: Chat-ToolWindow, konfigurierbare BaseUrl/Modell, Connection-Test.</ReleaseNotes>
+  <SupportedFramework Id="Microsoft.VisualStudio" Version="18.0" />
+</Installation>
