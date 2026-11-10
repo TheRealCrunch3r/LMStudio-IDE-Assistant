@@ -17,6 +17,11 @@
   <ItemGroup>
     <!-- Metapackage with all VS Shell/Interop references (latest version per nuget.org: 17.14.x). -->
     <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.14.40265" />
+    <!-- SECURITY PIN: Microsoft.VisualStudio.SDK transitively pulls MessagePack 2.5.192, which is affected by
+         GHSA-hv8m-jj95-wg3x / CVE-2026-48109 (LZ4 decompression DoS, CVSS 8.2). The v2 line is patched as of
+         2.5.301; we pin the latest stable 2.x (verified on nuget.org) to clear the NU1902/NU1903 audit findings
+         while staying binary-compatible with the VS SDK assemblies (deliberately NOT upgraded to the v3/v4 lines). -->
+    <PackageReference Include="MessagePack" Version="2.5.301" />
     <!-- Build tooling, VS Host version line (Professional 2026 = v18) -> 18.x; latest stable per nuget.org: 18.9.820. -->
     <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="18.9.820" />
   </ItemGroup>
